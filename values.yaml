@@ -1,0 +1,29 @@
+spec:
+  destination:
+    namespace: nifi-only
+    server: https://kubernetes.default.svc
+  project: default
+
+enable:
+  certmgr: false
+  registry: false
+  nifi: true
+
+x:
+  registry:
+    namespace: nifi-registry
+    chart: nifi-registry
+    repoURL: https://dysnix.github.io/charts/
+    targetRevision: 1.1.4
+    valueFiles:
+  certmgr:
+    chart: cert-manager
+    repoURL: https://charts.jetstack.io
+    targetRevision: 'v1.11.2'
+    valueFiles: 
+  nifi:
+    repoURL: 'https://cristi0204.github.io/helm-charts/'
+    targetRevision: 1.21.2
+    chart: nifi
+    valueFiles:
+# deploy cert-manager, nifi, nifi-registry
