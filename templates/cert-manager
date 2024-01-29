@@ -1,0 +1,33 @@
+{{- if .Values.enable.certmgr }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+#    name: ''
+    namespace: {{ .Values.spec.destination.namespace }}
+    server: {{ .Values.spec.destination.server }}
+  source:
+    path: ''
+    repoURL: {{ .Values.x.certmgr.repoURL }}
+    targetRevision: {{ .Values.x.certmgr.targetRevision }}
+    chart: {{ .Values.x.certmgr.chart }}
+    helm:
+      parameters:
+        - name: installCRDs
+          value: "true"
+  sources: []
+  project: default
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true 
+{{- end }}
