@@ -1,0 +1,135 @@
+{{- if .Values.enable.nifi }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apache-nifi-only
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: {{ .Values.spec.destination.namespace }}
+    server: {{ .Values.spec.destination.server }}
+  source:
+    chart: {{ .Values.x.nifi.chart }}
+    repoURL: {{ .Values.x.nifi.repoURL }}
+    targetRevision: {{ .Values.x.nifi.targetRevision }}
+    helm:
+       valueFiles: {{ .Values.x.nifi.valueFiles }}
+       parameters:
+        # - name: replicaCount
+        #   value: #'1'
+###.   POC playgroud.     ###############################       
+## nifi registry. https://nifi.apache.org/registry.html
+        - name: 'registry.enabled'
+          value: 'false'
+        - name: 'registry.url'
+          value: 'apache-nifi-registry.nifi-registry.svc.cluster.local'
+        - name: 'registry.port'
+          value: '18080'
+
+## additional flow files in xml format
+        - name: 'customFlow'
+          value: '/data1/panos-syslog-udp.xml'
+          # value: '/data1/panos-syslog-generate.xml'
+
+## overide default nifi image version
+        - name: image.repository
+          value: 'apache/nifi'
+        - name: image.tag
+          value: '1.21.0'
+
+## run as cluster or independent nodes
+        - name: 'properties.isNode'
+          value: 'false'
+
+## use cert-manager as nifi CA
+        - name: certManager.enabled
+          value: '{{ .Values.enable.certmgr }}'
+
+## change resource allocation
+        # - name: 'jvmMemory'
+        #   value: '4g'
+        - name: 'resources.limits.cpu'
+          value: '3500m'
+        - name: 'resources.limits.memory'
+          value: '7Gi'
+        - name: 'resources.requests.cpu'
+          value: '2000m'
+        - name: 'resources.requests.memory'
+          value: '4Gi'
+
+## horizontal pod autoscaler
+        - name: 'hpa.enabled'
+          value: 'false'
+### hpa v2
+        - name: 'hpav2.enabled'
+          value: 'true'
+        - name: 'hpav2.maxReplicas'
+          value: '3'
+        - name: 'hpav2.averageCpuUtilization'
+          value: '100'
+        - name: 'hpav2.averageMemoryUtilization'
+          value: '100'
+
+## nifi web settings
+        - name: properties.webProxyHost
+          value: "nifi-only.local"
+        - name: service.type
+          value: ClusterIP
+
+
+## ingress - nginx
+        - name: 'ingress.enabled'
+          value: 'true'
+        - name: 'ingress.path'
+          value: '/'
+        - name: ingress.hosts.host
+          value: nifi-only.local
+
+## zookeper
+        - name: 'zookeeper.enabled'
+          value: 'false'
+
+## prometheus monitoring
+        # - name: 'metrics.prometheus.enabled'
+        #   value: 'true'
+        # - name: 'metrics.prometheus.port'
+        #   value: '9092'
+        # - name: 'metrics.prometheus.serviceMonitor.enabled'
+        #   value: 'true'
+        # - name: 'metrics.prometheus.serviceMonitor.namespace'
+        #   value: {{ .Values.spec.destination.namespace }}
+        # - name: 'metrics.prometheus.serviceMonitor.labels'
+        #   value: 'nifi'
+
+## mount extra storage -- moved in heml values.yaml
+
+# ## data1
+        - name: 'extraVolumeMounts[0].mountPath'
+          value: /data1
+        - name: 'extraVolumeMounts[0].name'
+          value: disk1
+        - name: 'extraVolumes[0].name'
+          value: disk1
+        - name: 'extraVolumes[0].hostPath.path'
+          value: /datadrive1
+        - name: 'properties.customLibPath'
+          value: /data1/lec-connectors
+
+  project: {{ .Values.spec.project }}
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      # - Replace=true
+    automated:
+      prune: true
+      # selfHeal: true
+operation:
+    # sync:
+    #     syncStrategy:
+    #         apply:
+    #             force: true
+{{- end }}
